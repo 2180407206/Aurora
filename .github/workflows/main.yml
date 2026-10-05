@@ -17,25 +17,36 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 关键一步：在服务器上安装配置 Android SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Unzip Project
-        run: unzip Aurora.zip
-
-      - name: Build APK
+      - name: Unzip and Check
         run: |
-          # 找到 gradlew 所在目录（兼容解压后有外层文件夹的情况）
-          PROJ_DIR=$(find . -name "gradlew" -printf '%h\n' | head -n 1)
-          echo "项目目录是: $PROJ_DIR"
+          echo "=== 当前目录文件列表 ==="
+          ls -la
+          echo "=== 开始解压 ==="
+          unzip -o Aurora.zip
+
+      - name: Find and Build
+        run: |
+          echo "=== 查找 gradlew 文件 ==="
+          GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
+          
+          if [ -z "$GRADLEW_PATH" ]; then
+            echo "❌ 错误：在解压后的文件中找不到 gradlew 文件！"
+            echo "请检查你的 Aurora.zip 里是否包含完整的项目文件，或者检查是否上传了正确的 zip 包。"
+            exit 1
+          fi
+          
+          PROJ_DIR=$(dirname "$GRADLEW_PATH")
+          echo "✅ 找到项目目录: $PROJ_DIR"
           cd "$PROJ_DIR"
           
-          # 在服务器上自动创建 local.properties，指向刚安装的 SDK
+          # 告诉 Android 编译器 SDK 的位置
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           
+          # 赋予运行权限并开始编译
           chmod +x gradlew
-          # 执行编译，忽略测试加快速度
           ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
