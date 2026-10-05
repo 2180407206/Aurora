@@ -7,29 +7,50 @@ on:
 
 jobs:
   build:
-    # 关键点：使用 ubuntu-20.04，它的预装 SDK 版本较旧，完美兼容 AGP 7.0.1
-    runs-on: ubuntu-20.04
-    
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # 1. 只需要 JDK 11，满足 Gradle 7.0.1 的要求
-      - name: Set up JDK 11
+      # 1. 先装 JDK 17，专门用来运行 Android SDK 的下载工具
+      - name: Set up JDK 17 for SDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # 2. 在临时目录建一个纯净的 Android SDK（只要 API 31）
+      # 这样 Gradle 7.0.1 就不会去解析系统的 API 34 而崩溃了
+      - name: Create Clean Android SDK
+        run: |
+          mkdir -p ${{ runner.temp }}/android-sdk
+          cd ${{ runner.temp }}/android-sdk
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip
+          mkdir -p cmdline-tools/latest
+          mv cmdline-tools/* cmdline-tools/latest/ || true
+          rm -rf cmdline-tools/latest/latest
+          
+          export ANDROID_HOME=${{ runner.temp }}/android-sdk
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-31" "build-tools;31.0.0"
+
+      # 3. 切回 JDK 11，专门用来执行 Gradle 构建
+      - name: Set up JDK 11 for Gradle
         uses: actions/setup-java@v4
         with:
           java-version: '11'
           distribution: 'temurin'
 
-      # 2. 解压项目（如果你后面准备直接用源码，这一步可以删掉）
+      # 4. 解压项目（如果你后面准备直接用源码，这一步可以删掉）
       - name: Unzip Project
         run: |
           echo "=== 开始解压 ==="
           unzip -o Aurora.zip
 
-      # 3. 直接开始构建，使用系统预装的 Android SDK
+      # 5. 执行构建，把刚刚纯净的 SDK 路径传给 Gradle
       - name: Build with Gradle
         env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_HOME: ${{ runner.temp }}/android-sdk
         run: |
           echo "=== 查找项目目录 ==="
           GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
@@ -46,7 +67,7 @@ jobs:
           echo "=== 开始编译 ==="
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      # 4. 上传 APK
+      # 6. 上传 APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
