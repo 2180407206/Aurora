@@ -7,7 +7,9 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 关键点：使用 ubuntu-20.04，它的预装 SDK 版本较旧，完美兼容 AGP 7.0.1
+    runs-on: ubuntu-20.04
+    
     steps:
       - uses: actions/checkout@v4
 
@@ -18,16 +20,15 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # 2. 如果你依然用 Aurora.zip 传源码，保留这一步
+      # 2. 解压项目（如果你后面准备直接用源码，这一步可以删掉）
       - name: Unzip Project
         run: |
           echo "=== 开始解压 ==="
           unzip -o Aurora.zip
 
-      # 3. 直接开始构建，使用 GitHub 预装的 Android SDK
+      # 3. 直接开始构建，使用系统预装的 Android SDK
       - name: Build with Gradle
         env:
-          # 显式告诉 Gradle SDK 的路径（GitHub Runner 默认就在这）
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
           echo "=== 查找项目目录 ==="
