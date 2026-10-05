@@ -17,24 +17,19 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
+      # 删除那个会报错的 setup-android，直接用系统自带的
       - name: Unzip and Check
         run: |
-          echo "=== 当前目录文件列表 ==="
-          ls -la
           echo "=== 开始解压 ==="
           unzip -o Aurora.zip
 
       - name: Find and Build
         run: |
-          echo "=== 查找 gradlew 文件 ==="
+          echo "=== 查找项目目录 ==="
           GRADLEW_PATH=$(find . -name "gradlew" -type f | head -n 1)
           
           if [ -z "$GRADLEW_PATH" ]; then
-            echo "❌ 错误：在解压后的文件中找不到 gradlew 文件！"
-            echo "请检查你的 Aurora.zip 里是否包含完整的项目文件，或者检查是否上传了正确的 zip 包。"
+            echo "❌ 找不到 gradlew 文件！"
             exit 1
           fi
           
@@ -42,12 +37,13 @@ jobs:
           echo "✅ 找到项目目录: $PROJ_DIR"
           cd "$PROJ_DIR"
           
-          # 告诉 Android 编译器 SDK 的位置
+          # 关键点：使用服务器系统自带的 Android SDK
+          # GitHub 的 ubuntu-latest 默认就有 ANDROID_HOME 环境变量
           echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "当前使用的 SDK 目录: $ANDROID_HOME"
           
-          # 赋予运行权限并开始编译
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
