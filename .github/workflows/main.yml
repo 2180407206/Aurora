@@ -1,0 +1,38 @@
+name: Build Aurora APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      # 第一步：自动解压你上传的 Aurora.zip
+      - name: Unzip Project
+        run: unzip Aurora.zip
+
+      # 第二步：自动找到项目目录并编译
+      - name: Find and Build
+        run: |
+          DIR=$(find . -name "gradlew" -printf '%h\n' | head -n 1)
+          echo "项目目录是: $DIR"
+          cd "$DIR"
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      # 第三步：把编译好的 APK 传回仓库供你下载
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aurora-APK
+          path: "**/build/outputs/apk/debug/app-debug.apk"
